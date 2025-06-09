@@ -1,0 +1,165 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hello-v1
+  labels:
+    app: helloworld-node
+    version: v1
+spec:
+  selector:
+    matchLabels:
+      app: helloworld-node
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: helloworld-node
+        version: v1
+    spec:
+      containers:
+      - name: helloworld-node
+        image: dockersamples/helloworld-demo-node:latest
+        ports:
+        - containerPort: 8080
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "200m"
+            memory: "256Mi"
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: hello-v1-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: hello-v1
+  minReplicas: 1
+  maxReplicas: 5
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 50
+  # - type: Resource
+  #   resource:
+  #     name: memory
+  #     target:
+  #       type: Utilization
+  #       averageUtilization: 70
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hello-v2
+  labels:
+    pp: helloworld-node
+    version: v2
+spec:
+  selector:
+    matchLabels:
+      app: helloworld-node
+      version: v2
+  template:
+    metadata:
+      labels:
+        app: helloworld-node
+        version: v2
+    spec:
+      containers:
+      - name: helloworld-node
+        image: dockersamples/helloworld-demo-node:latest
+        ports:
+        - containerPort: 8080
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "200m"
+            memory: "256Mi"
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: hello-v2-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: hello-v2
+  minReplicas: 1
+  maxReplicas: 5
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 50
+---
+# BackendConfig to define traffic splitting
+apiVersion: cloud.google.com/v1
+kind: BackendConfig
+metadata:
+  name: helloworld-backend-config
+spec:
+  trafficControl:
+    weightedBackendServices:
+      - serviceName: helloworld-service-v1
+        weight: 50
+      - serviceName: helloworld-service-v2
+        weight: 50
+---
+# Service for hello-v1 Deployment, annotated to use the BackendConfig
+apiVersion: v1
+kind: Service
+metadata:
+  name: helloworld-service-v1
+  annotations:
+    cloud.google.com/backend-config: '{"default": "helloworld-backend-config"}'
+spec:
+  selector:
+    app: helloworld-node
+    version: v1 # This service only targets v1 pods
+  ports:
+    - protocol: TCP
+      name: http # Name the port for BackendConfig reference
+      port: 80
+      targetPort: 8080
+  type: ClusterIP
+---
+# Service for hello-v2 Deployment (no BackendConfig annotation needed here)
+apiVersion: v1
+kind: Service
+metadata:
+  name: helloworld-service-v2
+spec:
+  selector:
+    app: helloworld-node
+    version: v2
+  ports:
+    - protocol: TCP
+      name: http
+      port: 80
+      targetPort: 8080
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: helloworld-ingress
+  annotations:
+    kubernetes.io/ingress.class: "gce"
+spec:
+  defaultBackend:
+    service:
+      name: helloworld-service-v1
+      port:
+        number: 80
