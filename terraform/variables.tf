@@ -1,19 +1,19 @@
 variable "project_id" {
   description = "The GCP project ID where the GKE cluster will be created."
   type        = string
-  default     = "tympahealth-james-calleja"
+  default     = "tympatechtest"
 }
 
 variable "region" {
   description = "The GCP region for the GKE cluster."
   type        = string
-  default     = "europe-west2"
+  default     = "europe-west3"
 }
 
 variable "zone" {
   description = "The GCP zone for the single-node GKE cluster."
   type        = string
-  default     = "europe-west2-a"
+  default     = "europe-west3-b"
 }
 
 variable "gke_cluster_name" {

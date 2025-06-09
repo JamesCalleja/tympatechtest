@@ -10,9 +10,10 @@ This repository contains Terraform configurations and Kubernetes manifests to de
 2.  [Prerequisites](#prerequisites)
 3.  [Google Cloud Project Setup](#google-cloud-project-setup)
 4.  [Terraform Deployment](#terraform-deployment)
-5.  [Application Verification](#application-verification)
-6.  [Key Learnings & Notes](#key-learnings--notes)
-7.  [Cleanup](#cleanup)
+5.  [Connect to Cluster and Deploy Application](#5-connect-to-cluster-and-deploy-application)
+6.  [Application Verification](#application-verification)
+7.  [Key Learnings & Notes](#key-learnings--notes)
+8.  [Cleanup](#cleanup)
 
 ---
 
@@ -74,7 +75,7 @@ Follow these steps to deploy the GKE cluster and application using Terraform:
 
 1.  **Clone the repo:**
     ```bash
-    git clone https://github.com/JamesCalleja/tympatechtest.git
+    git clone [https://github.com/JamesCalleja/tympatechtest.git](https://github.com/JamesCalleja/tympatechtest.git)
     ```
 
 2.  **Navigate to the Terraform directory:**
@@ -101,27 +102,46 @@ Follow these steps to deploy the GKE cluster and application using Terraform:
     terraform apply
     ```
     *Note: GKE cluster creation can take 10-15 minutes or longer. If it gets stuck on "Still creating..." for an extended period (e.g., >30 mins), check the Google Cloud Console (Kubernetes Engine -> Clusters) for detailed error messages or status updates.*
-    *Common `404 Not Found` errors during node pool creation (e.g., `Failed to fetch local ssd counts from SOT for machine type e2-large`) indicate that the specified machine type (`e2-medium` or `e2-large`) does not support Local SSDs. Ensure `local_ssd_count = 0` is explicitly set in your node pool configuration within the `main.tf` if using E2 series VMs.*
+    *Common `404 Not Found` errors during node pool creation (e.g., `Failed to fetch local ssd counts from SOT for machine type e2-large`) indicate that the specified machine type (`e2-medium` or `e2-large`) does not support Local SSDs. Ensure `local_ssd_count` is **completely removed** from your node pool configuration within the `main.tf` if using E2 series VMs.*
 
 ---
 
-## 5. Application Verification
+## 5. Connect to Cluster and Deploy Application
 
-Once `terraform apply` completes, your GKE cluster will be running, and the application deployments, services, BackendConfig, and Ingress will be configured.
+After Terraform successfully creates your GKE cluster, you need to configure your local `kubectl` to interact with it and then deploy your application's Kubernetes manifests.
+
+1.  **Get Cluster Credentials:**
+    This command fetches the necessary credentials and configures your local `kubectl` to communicate with your new GKE cluster. Replace `europe-west2` with your cluster's region and `tympatechtest` with your project ID.
+    ```bash
+    gcloud container clusters get-credentials single-node-gke-cluster --region europe-west2 --project tympahealth-james-calleja
+    ```
+
+2.  **Deploy the A/B Test Application:**
+    Navigate back to the root of the cloned repository (where `ab-test.yaml` is located) and apply the Kubernetes manifest. This will create your deployments, services, BackendConfig, and Ingress.
+    ```bash
+    cd ../k8s
+    kubectl apply -f ab-test.yaml
+    ```
+
+---
+
+## 6. Application Verification
+
+Once `kubectl apply` completes, your application deployments, services, BackendConfig, and Ingress will be configured on the GKE cluster.
 
 1.  **Get the Ingress External IP:**
-    The Ingress resource will provision a Google Cloud HTTP(S) Load Balancer. It may take a few minutes for the IP address to become available after `terraform apply` finishes.
+    The Ingress resource will provision a Google Cloud HTTP(S) Load Balancer. It may take a few minutes for the IP address to become available after `terraform apply` and `kubectl apply` finish.
     ```bash
     kubectl get ingress helloworld-ingress -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
     ```
     Copy the IP address that is returned.
 
 2.  **Test 50/50 Traffic Splitting:**
-    Replace `34.123.45.67` with the actual Ingress IP you obtained in the previous step.
+    Replace `<IPADDRESS>` with the actual Ingress IP you obtained in the previous step.
     ```bash
     for i in {1..20}; do
       echo "Request $i:"
-      curl -s [http://34.123.45.67](http://34.123.45.67) | grep "Hello"
+      curl -s [http://<IPADDRESS>](http://<IPADDRESS>) | grep "Hello"
       echo "---"
       sleep 0.5
     done
@@ -130,11 +150,11 @@ Once `terraform apply` completes, your GKE cluster will be running, and the appl
 
 ---
 
-## 6. Key Learnings & Notes
+## 7. Key Learnings & Notes
 
 * **Required GKE Module Inputs:** The official `terraform-google-modules/kubernetes-engine` module requires explicit inputs for `network`, `subnetwork`, `ip_range_pods`, and `ip_range_services`. It doesn't accept default network/IAM settings; these resources must be created or explicitly referenced. This project uses the `terraform-google-modules/network` module to provision these prerequisites.
 * **API Enablement:** Initial `403` (Forbidden) errors during Terraform execution often indicate that essential Google Cloud APIs (like Compute Engine and Kubernetes Engine) aren't yet enabled for the project. These need to be enabled manually via `gcloud services enable` or the Google Cloud Console as a bootstrapping step.
-* **Local SSD Incompatibility:** Be aware that E2 machine types (e.g., `e2-medium`, `e2-large`) don't support Local SSDs. If you encounter errors related to Local SSDs, ensure `local_ssd_count = 0` is explicitly set in your node pool configuration.
+* **Local SSD Incompatibility:** Be aware that E2 machine types (e.g., `e2-medium`, `e2-large`) don't support Local SSDs. If you encounter errors related to Local SSDs, ensure `local_ssd_count` is **completely removed** from your node pool configuration.
 * **Weighted Ingress Traffic Splitting on GKE:** To achieve weighted traffic distribution (e.g., 50/50) across different application versions using GKE Ingress:
     * Each distinct application version (Deployment) needs its own dedicated Kubernetes `Service` (e.g., `helloworld-service-v1` and `helloworld-service-v2`).
     * A `BackendConfig` resource is used to define the desired traffic weights for these services.
@@ -144,7 +164,7 @@ Once `terraform apply` completes, your GKE cluster will be running, and the appl
 
 ---
 
-## 7. Cleanup
+## 8. Cleanup
 
 To destroy all resources created by Terraform and avoid incurring further costs, run:
 

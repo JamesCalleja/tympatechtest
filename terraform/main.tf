@@ -63,7 +63,7 @@ module "gke_cluster" {
   node_pools = [
     {
       name               = "single-node-pool"
-      machine_type       = "e2-large"
+      machine_type       = "e2-medium"
       initial_node_count = 1
       min_node_count     = 1
       max_node_count     = 1
@@ -72,7 +72,6 @@ module "gke_cluster" {
       image_type         = "COS_CONTAINERD"
       auto_repair        = true
       auto_upgrade       = true
-      local_ssd_count    = 0
     }
   ]
 }
