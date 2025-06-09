@@ -72,23 +72,30 @@ Before running Terraform, you need to authenticate with Google Cloud and enable 
 
 Follow these steps to deploy the GKE cluster and application using Terraform:
 
-1.  **Navigate to the Terraform directory:**
-    Change to the directory where your `main.tf`, `variables.tf`, `versions.tf` (and potentially the `app-deployment.yaml`) files are located.
+1.  **Clone the repo:**
+    ```bash
+    git clone https://github.com/JamesCalleja/tympatechtest.git
+    ```
 
-2.  **Initialize Terraform:**
+2.  **Navigate to the Terraform directory:**
+    ```bash
+    cd terraform
+    ```
+
+3.  **Initialize Terraform:**
     This command downloads the necessary providers and modules.
     ```bash
     terraform init
     ```
     *Note: You may encounter provider version conflicts if your local `hashicorp/google` provider version in `versions.tf` is incompatible with the GKE module's requirements. Ensure your `versions.tf` specifies a compatible range (e.g., `version = "~> 6.14"` for the Google provider and `~> 7.5` for the Network module).*
 
-3.  **Review the Plan:**
+4.  **Review the Plan:**
     Examine the resources Terraform proposes to create, modify, or destroy.
     ```bash
     terraform plan
     ```
 
-4.  **Apply the Configuration:**
+5.  **Apply the Configuration:**
     If the plan looks correct, apply the changes to provision the infrastructure. Type `yes` when prompted.
     ```bash
     terraform apply
